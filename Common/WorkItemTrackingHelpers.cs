@@ -130,7 +130,7 @@ namespace Common
             // can't use the WorkItemTrackingHttpClient since it expects either a file or a stream.
             var attachmentReference = await RetryHelper.RetryAsync(async () =>
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{connection.Uri}/_apis/wit/attachments?uploadType=chunked&api-version=3.2");
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{connection.Uri}/_apis/wit/attachments?uploadType=chunked&api-version=7.1");
                 var response = await httpClient.SendAsync(request);
 
                 if (response.IsSuccessStatusCode)

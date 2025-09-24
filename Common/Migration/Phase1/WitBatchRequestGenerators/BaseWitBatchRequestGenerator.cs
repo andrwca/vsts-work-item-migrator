@@ -39,7 +39,7 @@ namespace Common.Migration
             this.WitBatchRequests = new List<WitBatchRequest>();
             bool bypassRules = true;
             bool suppressNotifications = true;
-            this.QueryString = $"bypassRules={bypassRules}&suppressNotifications={suppressNotifications}&api-version=4.0";
+            this.QueryString = $"bypassRules={bypassRules}&suppressNotifications={suppressNotifications}&api-version=7.1";
 
             // we only have a batch context when it's create/update work items
             if (batchContext != null)
@@ -108,8 +108,21 @@ namespace Common.Migration
                         preparedField = RemoveEmojis(sourceField, preparedField);
                     }
 
-                    // add inline image urls
                     JsonPatchOperation jsonPatchOperation;
+
+                    // Convert identity fields to string format "Display Name <Unique Name>"
+                    if (sourceField.Value.GetType() == typeof(Microsoft.VisualStudio.Services.WebApi.IdentityRef))
+                    {
+                        var identity = (Microsoft.VisualStudio.Services.WebApi.IdentityRef)sourceField.Value;
+                        string updatedIdentityFieldValue = identity.DisplayName + " <" + identity.UniqueName + ">";
+                        KeyValuePair<string, object> updatedField = new KeyValuePair<string, object>(preparedField.Key, updatedIdentityFieldValue);
+                           
+                        jsonPatchOperation = MigrationHelpers.GetJsonPatchOperationAddForField(updatedField);
+                        jsonPatchDocument.Add(jsonPatchOperation);
+                        continue;
+                    }
+
+                    // add inline image urls
                     if (this.migrationContext.HtmlFieldReferenceNames.Contains(preparedField.Key) 
                         && preparedField.Value is string)
                     {
@@ -245,7 +258,7 @@ namespace Common.Migration
 
         protected KeyValuePair<string, object> CreateTargetField(WorkItem sourceWorkItem, KeyValuePair<string, object> sourceField)
         {
-            KeyValuePair<string, object> targetField;
+            KeyValuePair<string, object> targetField = new KeyValuePair<string, object>();
             string targetProject = this.migrationContext.Config.TargetConnection.Project;
             string sourceProject = this.migrationContext.Config.SourceConnection.Project;
 

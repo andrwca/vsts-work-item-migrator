@@ -25,7 +25,7 @@ namespace Common.Migration
             this.context = context;
             bool bypassRules = true;
             bool suppressNotifications = true;
-            this.queryString = $"bypassRules={bypassRules}&suppressNotifications={suppressNotifications}&api-version=4.0";
+            this.queryString = $"bypassRules={bypassRules}&suppressNotifications={suppressNotifications}&api-version=7.1";
         }
 
         public async Task Migrate()

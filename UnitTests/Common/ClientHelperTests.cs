@@ -65,7 +65,7 @@ namespace UnitTests.Common
         [TestMethod]
         public void GetWorkItemIdFromApiEndpoint_ReturnsCorrectResultWhenEndpointContainsQueryString()
         {
-            string endpointUri = "https://dev.azure.com/account/_apis/wit/workItems/3543?bypassRules=True&suppressNotifications=True&api-version=4.0";
+            string endpointUri = "https://dev.azure.com/account/_apis/wit/workItems/3543?bypassRules=False&suppressNotifications=True&api-version=7.1";
 
             int expected = 3543;
 

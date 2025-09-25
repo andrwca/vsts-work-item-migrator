@@ -62,7 +62,7 @@ namespace Common.Migration
                             $"{Constants.WorkItemHistory}-{sourceWorkItem.Id}-{updateCount}.json", 
                             attachmentReference, 
                             stringBytes.Length,
-                            comment: $"Update range from {updateCount} to {updateCount + updates.Count}"));
+                            comment: $"Work item history from {updateCount} to {updateCount + updates.Count}"));
                 }
                 
                 updateCount += updates.Count;

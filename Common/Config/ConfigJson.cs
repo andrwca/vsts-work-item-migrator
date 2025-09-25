@@ -111,5 +111,8 @@ namespace Common.Config
 
         [JsonProperty(PropertyName = "email-notification", Required = Required.DisallowNull)]
         public EmailNotification EmailNotification { get; set; }
+
+        [JsonProperty(PropertyName = "move-pull-requests", DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool MovePullRequests { get; set; }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using Logging;
 using Microsoft.Extensions.Logging;
+using Microsoft.TeamFoundation.SourceControl.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
@@ -10,6 +11,7 @@ namespace Common
     public class WorkItemClientConnection
     {
         static ILogger Logger { get; } = MigratorLogging.CreateLogger<WorkItemClientConnection>();
+        public GitHttpClient GitHttpClient { get; private set; }
         public WorkItemTrackingHttpClient WorkItemTrackingHttpClient { get; private set; }
         protected VssCredentials Credentials { get; private set; }
         protected Uri Url { get; private set; }
@@ -28,6 +30,7 @@ namespace Common
 
             try
             {
+                this.GitHttpClient = new GitHttpClient(uri, credentials, new VssHttpRequestSettings { SendTimeout = TimeSpan.FromMinutes(5) });
                 this.WorkItemTrackingHttpClient = new WorkItemTrackingHttpClient(uri, credentials, new VssHttpRequestSettings { SendTimeout = TimeSpan.FromMinutes(5) });
             }
             catch (Exception e)

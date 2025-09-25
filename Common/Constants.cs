@@ -10,6 +10,8 @@ namespace Common
         public const string Hyperlink = "Hyperlink";
         public const string AttachedFile = "AttachedFile";
         public const string WorkItemHistory = "WorkItemHistory";
+        public const string PullRequest = "PullRequest";
+        public const string PullRequestComments = "PullRequestComments";
         public const string RelationAttributeName = "name";
         public const string RelationAttributeResourceSize = "resourceSize";
         public const string RelationArtifactLink = "ArtifactLink";
@@ -20,6 +22,9 @@ namespace Common
         public const string RelationAttributeResourceCreatedDate = "resourceCreatedDate";
         public const string RelationAttributeResourceModifiedDate = "resourceModifiedDate";
         public const string RelationAttributeRevisedDate = "revisedDate";
+
+        // NEW: Pull Request artifact link name
+        public const string RelationAttributePullRequestNameValue = "Pull Request";
 
         public const string RelationAttributeGitCommitNameValue = "Fixed in Commit";
         public const string RelationAttributeGitCommitCommentValue = "(Git Commit Link) Comment: ";
@@ -36,6 +41,7 @@ namespace Common
 
         public const string RelationPhaseAttachments = "attachments";
         public const string RelationPhaseGitCommitLinks = "git commit links";
+        public const string RelationPhasePullRequestAttachments = "pull request attachments";
         public const string RelationPhaseRevisionHistoryAttachments = "revision history attachments";
         public const string RelationPhaseWorkItemLinks = "work item links";
         public const string RelationPhaseRemoteLinks = "remote work item links";

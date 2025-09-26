@@ -34,12 +34,12 @@ namespace Common.Migration
         {
             this.migrationContext = migrationContext;
             this.batchContext = batchContext;
-            this.IdWithinBatchToWorkItemIdMapping = new List<(int BatchId, int WorkItemId)>();
-            this.IdWithinBatch = -1;
-            this.WitBatchRequests = new List<WitBatchRequest>();
+            IdWithinBatchToWorkItemIdMapping = new List<(int BatchId, int WorkItemId)>();
+            IdWithinBatch = -1;
+            WitBatchRequests = new List<WitBatchRequest>();
             bool bypassRules = true;
             bool suppressNotifications = true;
-            this.QueryString = $"bypassRules={bypassRules}&suppressNotifications={suppressNotifications}&api-version=7.1";
+            QueryString = $"bypassRules={bypassRules}&suppressNotifications={suppressNotifications}&api-version=7.1";
 
             // we only have a batch context when it's create/update work items
             if (batchContext != null)
@@ -79,8 +79,8 @@ namespace Common.Migration
 
         protected void DecrementIdWithinBatch(int? sourceWorkItemId)
         {
-            this.IdWithinBatchToWorkItemIdMapping.Add((this.IdWithinBatch, sourceWorkItemId.Value));
-            this.IdWithinBatch--;
+            IdWithinBatchToWorkItemIdMapping.Add((IdWithinBatch, sourceWorkItemId.Value));
+            IdWithinBatch--;
         }
 
         protected JsonPatchDocument CreateJsonPatchDocumentFromWorkItemFields(WorkItem sourceWorkItem)
@@ -103,9 +103,23 @@ namespace Common.Migration
                     KeyValuePair<string, object> preparedField = UpdateProjectNameIfNeededForField(sourceWorkItem, fieldProcessedForConfigFields);
                     
                     // TEMPORARY HACK for handling emoticons in identity fields:
-                    if (this.migrationContext.Config.ClearIdentityDisplayNames)
+                    if (migrationContext.Config.ClearIdentityDisplayNames)
                     {
                         preparedField = RemoveEmojis(sourceField, preparedField);
+                    }
+
+                    // Redact fields if enabled.
+                    if (migrationContext.Config.RedactionEnabled)
+                    {
+                        if (migrationContext.Config.RedactionPhrases != null && preparedField.Value is string)
+                        {
+                            string preparedFieldValueString = preparedField.Value as string;
+                            foreach (string phrase in migrationContext.Config.RedactionPhrases)
+                            {
+                                preparedFieldValueString = preparedFieldValueString.Replace(phrase, "REDACTED", StringComparison.OrdinalIgnoreCase);
+                            }
+                            preparedField = new KeyValuePair<string, object>(preparedField.Key, preparedFieldValueString);
+                        }
                     }
 
                     JsonPatchOperation jsonPatchOperation;
@@ -123,7 +137,7 @@ namespace Common.Migration
                     }
 
                     // add inline image urls
-                    if (this.migrationContext.HtmlFieldReferenceNames.Contains(preparedField.Key) 
+                    if (migrationContext.HtmlFieldReferenceNames.Contains(preparedField.Key) 
                         && preparedField.Value is string)
                     {
                         string updatedHtmlFieldValue = GetUpdatedHtmlField((string)preparedField.Value);
@@ -189,7 +203,7 @@ namespace Common.Migration
         protected KeyValuePair<string, object> RemoveEmojis(KeyValuePair<string, object> sourceField, KeyValuePair<string, object> targetField)
         {
             if (targetField.Value is string
-                && this.migrationContext.IdentityFields.Contains(sourceField.Key))
+                && migrationContext.IdentityFields.Contains(sourceField.Key))
             {
                 string targetFieldValueString = targetField.Value as string;
 
@@ -221,13 +235,13 @@ namespace Common.Migration
         /// <returns></returns>
         private string GetUpdatedHtmlField(string htmlFieldValue)
         {
-            HashSet<string> inlineImageUrls = MigrationHelpers.GetInlineImageUrlsFromField(htmlFieldValue, this.migrationContext.SourceClient.Connection.Uri.AbsoluteUri);
+            HashSet<string> inlineImageUrls = MigrationHelpers.GetInlineImageUrlsFromField(htmlFieldValue, migrationContext.SourceClient.Connection.Uri.AbsoluteUri);
 
             foreach (string inlineImageUrl in inlineImageUrls)
             {
-                if (this.batchContext.SourceInlineImageUrlToTargetInlineImageGuid.ContainsKey(inlineImageUrl))
+                if (batchContext.SourceInlineImageUrlToTargetInlineImageGuid.ContainsKey(inlineImageUrl))
                 {
-                    string newValue = BuildTargetInlineImageUrl(inlineImageUrl, this.batchContext.SourceInlineImageUrlToTargetInlineImageGuid[inlineImageUrl]);
+                    string newValue = BuildTargetInlineImageUrl(inlineImageUrl, batchContext.SourceInlineImageUrlToTargetInlineImageGuid[inlineImageUrl]);
                     htmlFieldValue = htmlFieldValue.Replace(inlineImageUrl, newValue);
                 }
             }
@@ -237,8 +251,8 @@ namespace Common.Migration
 
         private string BuildTargetInlineImageUrl(string sourceInlineImageUrl, string targetInlineImageGuid)
         {
-            string sourceAccount = this.migrationContext.Config.SourceConnection.Account;
-            string targetAccount = this.migrationContext.Config.TargetConnection.Account;
+            string sourceAccount = migrationContext.Config.SourceConnection.Account;
+            string targetAccount = migrationContext.Config.TargetConnection.Account;
             string result = sourceInlineImageUrl.Replace(sourceAccount, targetAccount);
             return MigrationHelpers.ReplaceAttachmentUrlGuid(result, targetInlineImageGuid);
         }
@@ -259,11 +273,11 @@ namespace Common.Migration
         protected KeyValuePair<string, object> CreateTargetField(WorkItem sourceWorkItem, KeyValuePair<string, object> sourceField)
         {
             KeyValuePair<string, object> targetField = new KeyValuePair<string, object>();
-            string targetProject = this.migrationContext.Config.TargetConnection.Project;
-            string sourceProject = this.migrationContext.Config.SourceConnection.Project;
+            string targetProject = migrationContext.Config.TargetConnection.Project;
+            string sourceProject = migrationContext.Config.SourceConnection.Project;
 
-            string defaultAreaPath = string.IsNullOrEmpty(this.migrationContext.Config.DefaultAreaPath) ? targetProject : this.migrationContext.Config.DefaultAreaPath;
-            string defaultIterationPath = string.IsNullOrEmpty(this.migrationContext.Config.DefaultIterationPath) ? targetProject : this.migrationContext.Config.DefaultIterationPath;
+            string defaultAreaPath = string.IsNullOrEmpty(migrationContext.Config.DefaultAreaPath) ? targetProject : migrationContext.Config.DefaultAreaPath;
+            string defaultIterationPath = string.IsNullOrEmpty(migrationContext.Config.DefaultIterationPath) ? targetProject : migrationContext.Config.DefaultIterationPath;
 
             // Make sure the new area path and iteration path exist on target before assigning them.
             // Otherwise assign targetProject
@@ -310,22 +324,22 @@ namespace Common.Migration
 
         public bool ExistsInTargetAreaPathList(string areaPath)
         {
-            return this.migrationContext.TargetAreaPaths.Any(a => a.Equals(areaPath, StringComparison.OrdinalIgnoreCase));
+            return migrationContext.TargetAreaPaths.Any(a => a.Equals(areaPath, StringComparison.OrdinalIgnoreCase));
         }
 
         public bool ExistsInTargetIterationPathList(string iterationPath)
         {
-            return this.migrationContext.TargetIterationPaths.Any(a => a.Equals(iterationPath, StringComparison.OrdinalIgnoreCase));
+            return migrationContext.TargetIterationPaths.Any(a => a.Equals(iterationPath, StringComparison.OrdinalIgnoreCase));
         }
 
         public bool FieldRequiresProjectNameUpdate(string fieldName)
         {
-            return this.migrationContext.FieldsThatRequireSourceProjectToBeReplacedWithTargetProject.Any(a => a.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+            return migrationContext.FieldsThatRequireSourceProjectToBeReplacedWithTargetProject.Any(a => a.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
         }
 
         public bool IsFieldUnsupported(string fieldRefName)
         {
-            return this.migrationContext.UnsupportedFields.Any(a => fieldRefName.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0);
+            return migrationContext.UnsupportedFields.Any(a => fieldRefName.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         /// <summary>
@@ -337,7 +351,7 @@ namespace Common.Migration
         public bool FieldIsWithinType(string sourceFieldName, string sourceWorkItemType)
         {
             var targetFieldName = GetTargetFieldName(sourceFieldName);
-            ISet<string> fieldsOfKey = this.migrationContext.WorkItemTypes.First(a => a.Key.Equals(sourceWorkItemType, StringComparison.OrdinalIgnoreCase)).Value;
+            ISet<string> fieldsOfKey = migrationContext.WorkItemTypes.First(a => a.Key.Equals(sourceWorkItemType, StringComparison.OrdinalIgnoreCase)).Value;
             return fieldsOfKey.Any(a => a.Equals(targetFieldName, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -351,7 +365,7 @@ namespace Common.Migration
             JsonPatchOperation jsonPatchOperation = new JsonPatchOperation();
             jsonPatchOperation.Operation = Operation.Add;
             jsonPatchOperation.Path = "/id";
-            jsonPatchOperation.Value = this.IdWithinBatch;
+            jsonPatchOperation.Value = IdWithinBatch;
 
             return jsonPatchOperation;
         }

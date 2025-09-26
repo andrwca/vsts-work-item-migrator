@@ -1,86 +1,51 @@
 ﻿using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 using Common.Config;
 using Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
-using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
-using Newtonsoft.Json;
 
 namespace Common.Migration
 {
-    public class RevisionHistoryAttachmentsProcessor : IPhase2Processor
+    public class RevisionHistoryAttachmentsProcessor : NewAttachmentsProcessor
     {
-        static ILogger Logger { get; } = MigratorLogging.CreateLogger<RevisionHistoryAttachmentsProcessor>();
+        static ILogger _logger = MigratorLogging.CreateLogger<RevisionHistoryAttachmentsProcessor>();
+        protected override ILogger Logger => _logger;
 
-        public string Name => Constants.RelationPhaseRevisionHistoryAttachments;
+        public override string Name => Constants.RelationPhaseRevisionHistoryAttachments;
 
-        public bool IsEnabled(ConfigJson config)
+        public override bool IsEnabled(ConfigJson config) => config.MoveHistory;
+
+        protected override async Task<IList<AttachmentLink>> GenerateAttachmentsAsync(IMigrationContext migrationContext,
+                                                                                       WorkItem sourceWorkItem,
+                                                                                       WorkItem targetWorkItem)
         {
-            return config.MoveHistory;
-        }
-
-        public async Task Preprocess(IMigrationContext migrationContext, IBatchMigrationContext batchContext, IList<WorkItem> sourceWorkItems, IList<WorkItem> targetWorkItems)
-        {
-            
-        }
-
-        public async Task<IEnumerable<JsonPatchOperation>> Process(IMigrationContext migrationContext, IBatchMigrationContext batchContext, WorkItem sourceWorkItem, WorkItem targetWorkItem)
-        {
-            var jsonPatchOperations = new List<JsonPatchOperation>();
-            var attachments = await UploadAttachmentsToTarget(migrationContext, sourceWorkItem);
-            foreach (var attachment in attachments)
-            {
-                JsonPatchOperation revisionHistoryAttachmentAddOperation = MigrationHelpers.GetRevisionHistoryAttachmentAddOperation(attachment, sourceWorkItem.Id.Value);
-                jsonPatchOperations.Add(revisionHistoryAttachmentAddOperation);
-            }
-
-            return jsonPatchOperations;
-        }
-
-        private async Task<IList<AttachmentLink>> UploadAttachmentsToTarget(IMigrationContext migrationContext, WorkItem sourceWorkItem)
-        {
-            var attachmentLinks = new List<AttachmentLink>();
+            var links = new List<AttachmentLink>();
             int updateLimit = migrationContext.Config.MoveHistoryLimit;
-            int updateCount = 0;
+            int skip = 0;
 
-            while (updateCount < updateLimit)
+            while (skip < updateLimit)
             {
-                var updates = await GetWorkItemUpdates(migrationContext, sourceWorkItem, skip: updateCount);
-                string attachmentContent = JsonConvert.SerializeObject(updates);
-                AttachmentReference attachmentReference;
-                using (MemoryStream stream = new MemoryStream())
-                {
-                    var stringBytes = System.Text.Encoding.UTF8.GetBytes(attachmentContent);
-                    await stream.WriteAsync(stringBytes, 0, stringBytes.Length);
-                    stream.Position = 0;
-                    //upload the attachment to the target for each batch of workitem updates
-                    attachmentReference = await WorkItemTrackingHelpers.CreateAttachmentAsync(migrationContext.TargetClient.WorkItemTrackingHttpClient, stream);
-                    attachmentLinks.Add(
-                        new AttachmentLink(
-                            $"{Constants.WorkItemHistory}-{sourceWorkItem.Id}-{updateCount}.json", 
-                            attachmentReference, 
-                            stringBytes.Length,
-                            comment: $"Work item history from {updateCount} to {updateCount + updates.Count}"));
-                }
-                
-                updateCount += updates.Count;
+                var updates = await WorkItemTrackingHelpers.GetWorkItemUpdatesAsync(
+                    migrationContext.SourceClient.WorkItemTrackingHttpClient,
+                    sourceWorkItem.Id.Value,
+                    skip);
 
-                // if we got less than a page size, that means we're on the last
-                // page and shouldn't try and read another page.
+                links.Add(
+                    await CreateJsonAttachmentAsync(
+                        migrationContext,
+                        updates,
+                        $"{Constants.WorkItemHistory}-{sourceWorkItem.Id}-{skip}.json",
+                        $"Work item history from {skip} to {skip + updates.Count}"));
+
+                skip += updates.Count;
                 if (updates.Count < Constants.PageSize)
                 {
                     break;
                 }
             }
 
-            return attachmentLinks;
-        }
-
-        private async Task<IList<WorkItemUpdate>> GetWorkItemUpdates(IMigrationContext migrationContext, WorkItem sourceWorkItem, int skip = 0)
-        {
-            return await WorkItemTrackingHelpers.GetWorkItemUpdatesAsync(migrationContext.SourceClient.WorkItemTrackingHttpClient, sourceWorkItem.Id.Value, skip);
+            return links;
         }
     }
 }

@@ -114,5 +114,11 @@ namespace Common.Config
 
         [JsonProperty(PropertyName = "move-pull-requests", DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool MovePullRequests { get; set; }
+
+        [JsonProperty(PropertyName = "redaction-enabled", DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool RedactionEnabled { get; set; }
+
+        [JsonProperty(PropertyName = "redaction-phrases", DefaultValueHandling = DefaultValueHandling.Populate)]
+        public List<string> RedactionPhrases { get; set; } = new List<string>();
     }
 }

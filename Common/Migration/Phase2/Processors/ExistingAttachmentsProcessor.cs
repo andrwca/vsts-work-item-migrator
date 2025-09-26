@@ -11,9 +11,9 @@ using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
 
 namespace Common.Migration
 {
-    public class AttachmentsProcessor : IPhase2Processor
+    public class ExistingAttachmentsProcessor : IPhase2Processor
     {
-        static ILogger Logger { get; } = MigratorLogging.CreateLogger<AttachmentsProcessor>();
+        static ILogger Logger { get; } = MigratorLogging.CreateLogger<ExistingAttachmentsProcessor>();
 
         public string Name => Constants.RelationPhaseAttachments;
 
